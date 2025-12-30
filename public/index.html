@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Planlayıcı</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="panel">
+    <h1>PLANLAYICI</h1>
+
+    <div class="form">
+        <input type="text" id="taskInput" placeholder="Yeni görev gir">
+        <select id="statusInput">
+            <option value="todo">Yapılacak</option>
+            <option value="doing">Devam Ediyor</option>
+            <option value="done">Tamamlandı</option>
+        </select>
+        <button onclick="addTask()">Ekle</button>
+    </div>
+
+    <div class="board">
+        <div class="column" data-status="todo">
+            <h3>Yapılacak (<span id="todoCount">0</span>)</h3>
+            <ul id="todoList" class="task-column"></ul>
+        </div>
+
+        <div class="column" data-status="doing">
+            <h3>Devam Ediyor (<span id="doingCount">0</span>)</h3>
+            <ul id="doingList" class="task-column"></ul>
+        </div>
+
+        <div class="column" data-status="done">
+            <h3>Tamamlandı (<span id="doneCount">0</span>)</h3>
+            <ul id="doneList" class="task-column"></ul>
+        </div>
+    </div>
+
+    <div id="stats" class="stats"></div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
