@@ -8,15 +8,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Statik dosyalar için "public" klasörü
+// Statik dosyalar (HTML, CSS, JS) için "public" klasörünü kullanır
 app.use(express.static(path.join(__dirname, "public")));
 
 // VERİTABANI BAĞLANTISI
 const pool = new Pool({
+  // Coolify'daki DATABASE_URL değişkenini kullanır
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL && !process.env.DATABASE_URL.includes("localhost") 
-       ? { rejectUnauthorized: false } 
-       : false
+  ssl: {
+    // Cloud sunucularda (Coolify/Render/Railway) bu ayar zorunludur
+    rejectUnauthorized: false 
+  }
 });
 
 // Tabloyu otomatik oluşturma
@@ -32,64 +34,69 @@ const initDB = async () => {
     `);
     console.log("✅ Veritabanı ve Tablo Hazır.");
   } catch (err) {
-    console.error("❌ DB Hatası (Başlangıç):", err.message);
+    console.error("❌ DB Hatası (Tablo oluşturulamadı):", err.message);
   }
 };
 initDB();
 
-// API ROTARI (Ön eki /api yaptık)
-app.get("/api/tasks", async (req, res) => {
+// GÖREVLERİ GETİR (GET)
+app.get("/tasks", async (req, res) => {
   try {
     const result = await pool.query("SELECT * FROM tasks ORDER BY id DESC");
-    res.json(result.rows);
+    // Frontend'e direkt diziyi (array) gönderiyoruz
+    res.json(result.rows || []); 
   } catch (err) {
     console.error("GET Hatası:", err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json([]); // Hata olsa bile boş dizi dön ki frontend çökmesin
   }
 });
 
-app.post("/api/tasks", async (req, res) => {
+// YENİ GÖREV EKLE (POST)
+app.post("/tasks", async (req, res) => {
   try {
     const { text, status, day } = req.body;
-    if (!text || !day) return res.status(400).json({ error: "Eksik veri" });
-    
     const result = await pool.query(
       "INSERT INTO tasks (text, status, day) VALUES ($1, $2, $3) RETURNING *",
-      [text, status || 'todo', day]
+      [text, status, day]
     );
-    res.status(201).json(result.rows[0]);
+    res.json(result.rows[0]);
   } catch (err) {
     console.error("POST Hatası:", err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Ekleme yapılamadı" });
   }
 });
 
-app.put("/api/tasks/:id", async (req, res) => {
+// GÖREV GÜNCELLE (PUT)
+app.put("/tasks/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
     await pool.query("UPDATE tasks SET status = $1 WHERE id = $2", [status, id]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("PUT Hatası:", err.message);
+    res.status(500).json({ error: "Güncellenemedi" });
   }
 });
 
-app.delete("/api/tasks/:id", async (req, res) => {
+// GÖREV SİL (DELETE)
+app.delete("/tasks/:id", async (req, res) => {
   try {
-    await pool.query("DELETE FROM tasks WHERE id = $1", [req.params.id]);
+    const { id } = req.params;
+    await pool.query("DELETE FROM tasks WHERE id = $1", [id]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("DELETE Hatası:", err.message);
+    res.status(500).json({ error: "Silinemedi" });
   }
 });
 
-// SPA Yönlendirmesi (En sonda kalmalı)
+// Tüm route'ların dışındaki istekleri ana sayfaya yönlendir (SPA yapısı için)
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Sunucu ${PORT} portunda hazır.`);
+  console.log(`🚀 Sunucu ${PORT} portunda başarıyla başlatıldı`);
 });
